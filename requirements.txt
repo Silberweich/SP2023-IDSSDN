@@ -1,6 +1,5 @@
 fastapi
 uvicorn[standard]
-pydantic
 requests
-dotenv
+python-dotenv
 pathlib
