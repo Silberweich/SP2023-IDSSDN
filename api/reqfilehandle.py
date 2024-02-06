@@ -7,7 +7,9 @@ class RequestFileHandler():
         self.api = f"http://{MISP_API}/events/nids/suricata/download"
         self.token = MISP_API_TOKEN
         self.storage_path = os.path.join(PurePath(RULES_PATH), "suricata-misp.rules")
-        self.temp_storage_path = os.path.join(PurePath(RULES_PATH), "suricata-misp.tmp.rules")
+        self.temp_storage_path = os.path.join(PurePath(RULES_TEMP_PATH), "suricata-misp.tmp.rules")
+
+        print(self.getParams())
 
         self.file = open(self.storage_path, "w+", encoding="utf-8")
         self.temp = open(self.temp_storage_path, "w+", encoding="utf-8")
