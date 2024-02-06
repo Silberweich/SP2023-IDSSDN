@@ -9,8 +9,11 @@ class RequestFileHandler():
         self.storage_path = Path(os.path.join(PurePath(RULES_PATH), "suricata-misp.rules"))
         self.temp_storage_path = Path(os.path.join(PurePath(RULES_TEMP_PATH), "suricata-misp.tmp.rules"))
 
-        print(self.getParams())
-        print(os.getcwd())
+        print(">>>", self.getParams())
+        print(">>>", os.getcwd())
+
+        Path(self.storage_path).mkdir(parents=True, exist_ok=True)
+        Path(self.temp_storage_path).mkdir(parents=True, exist_ok=True)
 
         self.file = open(self.storage_path, "w+", encoding="utf-8")
         self.temp = open(self.temp_storage_path, "w+", encoding="utf-8")
@@ -41,11 +44,11 @@ class RequestFileHandler():
         try:
             self.file.write(response.text)
             self.temp.write(response.text)
+
+            self.file.flush().close()
+            self.temp.flush().close()
         except Exception as e:
             print(">>>", e)
             return False
-        
-        self.file.flush().close()
-        self.temp.flush().close()
 
         return True
