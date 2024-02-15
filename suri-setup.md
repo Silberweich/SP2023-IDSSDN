@@ -10,7 +10,7 @@ NOTE: do not fuck up the wifi again, big hassle to all installation steps. Tryin
 sudo apt update
 sudo apt upgrade
 
-sudo apt install libpcre2-dev libpcre3-dev libyaml-dev libjansson-dev libpcap-dev libcap-ng-dev libmagic-devv liblz4-dev libnss3-dev libnspr4  libssl-dev python3-yaml
+sudo apt install libpcre2-dev libpcre3-dev libyaml-dev libjansson-dev libpcap-dev libcap-ng-dev libmagic-dev liblz4-dev libnss3-dev libnspr4  libssl-dev python3-yaml
 ```
 ## install rust
 
