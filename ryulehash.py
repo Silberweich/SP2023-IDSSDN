@@ -16,14 +16,15 @@ HASH_DIR = "/etc/ryuhash/"
 
 # rb for read only, wb+ for creating new file if not exists
 def rule_hash_write(mode:str, h:hashlib.sha256) -> bool:
-    with open("/etc/ryuhash/rules.hash", mode, encoding="utf-8") as f:
+    with open("/etc/ryuhash/rules.hash", mode) as f:
         if f.read() == h.hexdigest().encode('utf-8'):
             syslog.syslog(syslog.LOG_INFO, "Ryu Hash Check: No changes in the rules file")
         else:
             syslog.syslog(syslog.LOG_INFO, "Ryu Hash Check: Changes in the rules file, informing suricata...")
             # Inform Suricata about the changes
             for i in os.getenv("SURICATA-ADDRESSES").split(":"):
-                requests.get(f"http://{i}/fetch-rules", verify=False)
+                print(f"http://{i}:8080/fetch-rules")
+                requests.get(f"http://{i}:8080/fetch-rules", verify=False)
             # Write the new hash to the file
             with open("/etc/ryuhash/rules.hash", "w", encoding="utf-8") as f:
                 f.write(h.hexdigest())
@@ -44,13 +45,13 @@ if __name__ == "__main__":
               "Content-Type": "application/json",
               "User-Agent": "python-requests/2.25.1"}
     try:
-        with requests.get(f"http://{os.getenv('MISP_API')}/events/nids/suricata/download", header = header, verify=False) as response:
+        with requests.get(f"http://{os.getenv('MISP_API')}/events/nids/suricata/download", headers=header, verify=False) as response:
             h.update(response.text.encode('utf-8')) 
             print(">>>", h.hexdigest())
             if Path(HASH_LOC).exists():
-                rule_hash_write("rb")
+                rule_hash_write("rb", h)
             else:
-                rule_hash_write("wb+")
+                rule_hash_write("wb+", h)
 
     except Exception as e:
         syslog.syslog(syslog.LOG_ERR, f"Ryu Hash Check Error: {e}")

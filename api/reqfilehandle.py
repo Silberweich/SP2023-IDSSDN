@@ -1,6 +1,9 @@
 from pathlib import PurePath, Path
+from typing import List
 import requests
 import os
+import subprocess, re
+
 
 class RequestFileHandler():
     def __init__(self, MISP_API: str, MISP_API_TOKEN: str, RULES_PATH: str, RULES_TEMP_PATH: str):
@@ -25,7 +28,7 @@ class RequestFileHandler():
         try:
             response = self.__req_rules()
             self.__write_rules(response)
-            return True
+            return self.__verify_rules()
         except Exception as e:
             print(">>>", e)
             return False 
@@ -52,3 +55,44 @@ class RequestFileHandler():
             return False
 
         return True
+    
+    def __filter_rules(self, line: str, signatures: List[any]) -> bool:
+        # Check if the line contains 8 or more consecutive spaces
+        if re.search(r' {8,}', line):
+            return False
+        for signature in signatures:
+            if signature in line:
+                return False
+        return True
+    
+    def __verify_rules(self) -> bool:
+        error_pattern = r'Error: detect.*parsing signature "([^"]*)"'
+        error_messages, filtered_lines = None, None
+        cmd = ['suricata', '-T', '-c', '/etc/suricata/suricata.yaml', '-v']
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        try:
+            o, e = proc.communicate()
+            suricata_errors = e.decode('utf-8')
+
+            with open('rules_error.txt', 'w') as f:
+                f.write(suricata_errors)
+
+            with open('rules_error.txt', 'w') as f:
+                error_messages = f.read()
+
+            signatures = re.findall(error_pattern, error_messages)
+
+            with open('suricata.rules', 'r') as f:
+                lines = f.readlines()
+                filtered_lines = filter(self.__filter_rules, lines, signatures)
+            
+            with open('cleaned.rules', 'w') as f:
+                f.writelines(filtered_lines)
+        
+        except Exception as e:
+            print(">>>", e)
+            return False
+
+        return True
+    
