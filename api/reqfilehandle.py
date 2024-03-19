@@ -28,7 +28,7 @@ class RequestFileHandler():
         try:
             response = self.__req_rules()
             self.__write_rules(response)
-            return self.__verify_rules()
+            return self.__verify_rules() and self.__reload_rules()
         except Exception as e:
             print(">>>", e)
             return False 
@@ -51,6 +51,17 @@ class RequestFileHandler():
             self.file.flush()
             self.temp.flush()
         except Exception as e:
+            print(">>>", e)
+            return False
+
+        return True
+    
+    def __reload_rules(self) -> bool:
+        cmd = ['kill', "-USR2", "$(pidof suricata)"]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        o, e = proc.communicate()
+
+        if e:
             print(">>>", e)
             return False
 
