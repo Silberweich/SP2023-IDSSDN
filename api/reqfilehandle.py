@@ -11,9 +11,10 @@ class RequestFileHandler():
         self.token = MISP_API_TOKEN
         self.storage_path = Path(os.path.join(PurePath(RULES_PATH), "suricata-misp.rules"))
         self.temp_storage_path = Path(os.path.join(PurePath(RULES_TEMP_PATH), "suricata-misp.tmp.rules"))
+        self.signatures = None
 
-        print(">>>", self.getParams())
-        print(">>>", os.getcwd())
+        print("init>>>", self.getParams())
+        print("init>>>", os.getcwd())
 
         # Path(self.storage_path).mkdir(parents=True, exist_ok=True)
         # Path(self.temp_storage_path).mkdir(parents=True, exist_ok=True)
@@ -30,7 +31,7 @@ class RequestFileHandler():
             self.__write_rules(response)
             return self.__verify_rules() and self.__reload_rules()
         except Exception as e:
-            print(">>>", e)
+            print("get>>>", e)
             return False 
 
     def __req_rules(self) -> requests.request:
@@ -51,7 +52,7 @@ class RequestFileHandler():
             self.file.flush()
             self.temp.flush()
         except Exception as e:
-            print(">>>", e)
+            print("write>>>", e)
             return False
 
         return True
@@ -62,48 +63,75 @@ class RequestFileHandler():
         o, e = proc.communicate()
 
         if e:
-            print(">>>", e)
+            print("reload>>>", e)
             return False
 
         return True
     
-    def __filter_rules(self, line: str, signatures: List[any]) -> bool:
+    def __filter_rules(self, line: str) -> bool:
         # Check if the line contains 8 or more consecutive spaces
         if re.search(r' {8,}', line):
             return False
-        for signature in signatures:
+        for signature in self.signatures:
             if signature in line:
                 return False
         return True
     
     def __verify_rules(self) -> bool:
         error_pattern = r'Error: detect.*parsing signature "([^"]*)"'
+        comment_pattern = r"^#.*"
+
         error_messages, filtered_lines = None, None
         cmd = ['suricata', '-T', '-c', '/etc/suricata/suricata.yaml', '-v']
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        rule_count = 0
+        all_rules = []
 
         try:
             o, e = proc.communicate()
             suricata_errors = e.decode('utf-8')
 
-            with open('rules_error.txt', 'w') as f:
+            with open(self.temp_storage_path, 'w') as f:
                 f.write(suricata_errors)
 
-            with open('rules_error.txt', 'w') as f:
+            with open(self.temp_storage_path, 'r') as f:
                 error_messages = f.read()
 
-            signatures = re.findall(error_pattern, error_messages)
+            self.signatures = re.findall(error_pattern, error_messages)
 
-            with open('suricata.rules', 'r') as f:
+            with open(self.storage_path, 'r') as f:
                 lines = f.readlines()
-                filtered_lines = filter(self.__filter_rules, lines, signatures)
+                filtered_lines = filter(self.__filter_rules, lines)
             
-            with open('cleaned.rules', 'w') as f:
+            with open(self.storage_path, 'w') as f:
                 f.writelines(filtered_lines)
-        
+
+            # warning evasion
+            with open(self.storage_path, 'r') as f:
+                lines = f.readlines()
+                for line in lines:
+                # Check if it's the comments on top of the file
+                    if re.search(comment_pattern, line):
+                        all_rules.append(line)
+                        continue
+                    rule_count = rule_count + 1
+                    split_rule = line.split("\"")
+                    split_rule[0] += "\"[" + str(rule_count) + "] "
+                    combine_rule = ""   
+
+                    for part in split_rule:
+                        combine_rule += part
+                
+                all_rules.append(combine_rule)
+
+            # Write the filtered lines to a new file
+            with open(self.storage_path, 'w') as f:
+                f.writelines(all_rules) 
+
         except Exception as e:
-            print(">>>", e)
+            print("verify>>>", e)
             return False
 
         return True
-    
+  
